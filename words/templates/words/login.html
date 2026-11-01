@@ -1,0 +1,17 @@
+{% extends 'words/base.html' %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 500px;">
+    <div class="card shadow-sm p-4">
+        <h2 class="text-center mb-4">Вход в личный кабинет</h2>
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-dark w-100 mt-3">Войти</button>
+        </form>
+        <p class="text-center mt-3 text-muted">
+            Ещё нет аккаунта? <a href="{% url 'register' %}" class="text-dark">Зарегистрироваться</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

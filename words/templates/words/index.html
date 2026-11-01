@@ -1,0 +1,203 @@
+{% extends 'words/base.html' %}
+
+{% block content %}
+<style>
+    .lang-pill {
+        border-radius: 50rem;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .word-card {
+        border: 1px solid #eef2f6;
+        border-radius: 12px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .word-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(149, 157, 165, 0.15) !important;
+    }
+    .category-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 12px 12px 0 0;
+    }
+</style>
+
+<!-- Шапка пользователя -->
+<div class="container mt-3">
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded-4 shadow-sm border">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-person-circle fs-4 text-primary"></i>
+            <span class="fw-semibold text-dark">{{ request.user.username }}</span>
+        </div>
+        <form action="{% url 'logout' %}" method="POST" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">Выйти</button>
+        </form>
+    </div>
+</div>
+
+<div class="container py-4">
+    <!-- Главный баннер -->
+    <div class="text-center mb-4">
+        <h1 class="fw-extrabold text-dark mb-2" style="font-size: 2.2rem;">🌍 Мультиязычный Словарь</h1>
+        <p class="text-muted">Слов в текущем языковом разделе: <span class="badge bg-primary rounded-pill">{{ total_words }}</span></p>
+
+        <a href="{% url 'word_training' %}?lang={{ current_lang }}" class="btn btn-primary btn-lg rounded-pill px-4 shadow-sm">
+            ⚡ Запустить тренировку
+        </a>
+    </div>
+
+    <!-- Вкладки языков -->
+    <div class="d-flex justify-content-center mb-4">
+        <div class="bg-white p-1 rounded-pill border shadow-sm d-inline-flex gap-1">
+            {% for lang_code, lang_name in languages %}
+                <a href="?lang={{ lang_code }}"
+                   class="btn lang-pill {% if current_lang == lang_code %}btn-primary text-white shadow-sm{% else %}btn-light text-secondary{% endif %}">
+                    {{ lang_name }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Форма добавления слова -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8 col-lg-6">
+            <div class="card p-3 shadow-sm border-0 rounded-4 bg-white">
+                <form method="POST" action="{% url 'vocab_home' %}?lang={{ current_lang }}" class="row g-2">
+                    {% csrf_token %}
+                    <div class="col-7">
+                        <input type="text" name="english_word" class="form-control form-control-lg border-0 bg-light rounded-3" placeholder="Введите новое слово..." required>
+                    </div>
+                    <div class="col-3">
+                        <select name="language" class="form-select form-select-lg border-0 bg-light rounded-3">
+                            {% for lang_code, lang_name in languages %}
+                                <option value="{{ lang_code }}" {% if current_lang == lang_code %}selected{% endif %}>{{ lang_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-3">➕</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Категории и карточки слов -->
+    <div class="row">
+        <div class="col-12">
+            {% for category in categories %}
+                <div class="card mb-4 shadow-sm border-0 rounded-4 overflow-hidden">
+                    <div class="category-header text-white fw-bold px-4 py-3 d-flex justify-content-between align-items-center">
+                        <span class="fs-5">📁 {{ category.name }}</span>
+                    </div>
+
+                    <div class="card-body bg-light p-4">
+                        <div class="row g-3">
+                            {% for word in words %}
+                                {% if word.category == category %}
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="card h-100 shadow-sm word-card p-3 bg-white">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <h4 class="fw-bold text-dark m-0 d-inline-block align-middle">
+                                                        {{ word.english }}
+                                                        <button type="button" class="btn btn-link text-secondary p-0 ms-1 align-baseline border-0 shadow-none"
+                                                                onclick="speakWord('{{ word.english|escapejs }}', '{{ word.language }}')"
+                                                                title="Прослушать">
+                                                            <i class="bi bi-volume-up-fill" style="font-size: 1.1rem;"></i>
+                                                        </button>
+
+                                                        {% if word.gender != 'none' %}
+                                                            <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">
+                                                                {% if word.gender == 'm' %}der / il (м.р.){% endif %}
+                                                                {% if word.gender == 'f' %}die / la (ж.р.){% endif %}
+                                                                {% if word.gender == 'n' %}das (с.р.){% endif %}
+                                                            </span>
+                                                        {% endif %}
+                                                    </h4>
+                                                    {% if word.transcription %}
+                                                        <span class="text-muted small ms-2">[{{ word.transcription }}]</span>
+                                                    {% endif %}
+                                                </div>
+
+                                                <form action="{% url 'delete_word' word.id %}" method="POST" onsubmit="return confirm('Удалить слово «{{ word.english }}»?');">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-link text-danger p-0 m-0 border-0" title="Удалить">
+                                                        <i class="bi bi-trash3"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+
+                                            <hr class="my-2 opacity-10">
+
+                                            <p class="card-text text-secondary mb-2 fs-6">{{ word.translation }}</p>
+
+                                            {% if word.example_sentence %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border-start border-3 border-primary mb-3">
+                                                    <small class="text-muted d-block mb-1" style="font-size: 0.75rem;">Пример от ИИ:</small>
+                                                    <small class="fst-italic text-dark">{{ word.example_sentence }}</small>
+                                                </div>
+                                            {% endif %}
+
+                                            <div class="mt-auto pt-2 border-top border-light">
+                                                <small class="text-success d-block mb-1 fw-bold" style="font-size: 0.8rem;">Твои примеры:</small>
+                                                <ul class="list-unstyled mb-2 ps-1" style="font-size: 0.85rem;">
+                                                    {% for example in word.user_examples.all %}
+                                                        <li class="text-dark mb-1 bg-light p-1 rounded-1">✍️ {{ example.text }}</li>
+                                                    {% empty %}
+                                                        <li class="text-muted small fst-italic">Примеров пока нет.</li>
+                                                    {% endfor %}
+                                                </ul>
+
+                                                <a class="btn btn-link btn-sm p-0 text-decoration-none text-primary small"
+                                                   data-bs-toggle="collapse"
+                                                   href="#collapseExample{{ word.id }}"
+                                                   role="button">
+                                                    ➕ Добавить пример
+                                                </a>
+
+                                                <div class="collapse mt-2" id="collapseExample{{ word.id }}">
+                                                    <form action="{% url 'add_user_example' word.id %}" method="POST">
+                                                        {% csrf_token %}
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="text" name="user_example_text" class="form-control" placeholder="Напишите предложение..." required>
+                                                            <button class="btn btn-success" type="submit">ОК</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="alert alert-light text-center shadow-sm rounded-4 py-4" role="alert">
+                    <p class="m-0 text-muted">Категории для этого языка еще не созданы. Добавьте слово выше или создайте категорию в админ-панели.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function speakWord(text, langCode) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            const langMap = {
+                'en': 'en-US',
+                'de': 'de-DE',
+                'it': 'it-IT'
+            };
+            utterance.lang = langMap[langCode] || 'en-US';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+</script>
+{% endblock %}
