@@ -36,7 +36,8 @@ def vocabulary_home(request):
             )
 
             if created:
-                parse_word_data.delay(word_obj.id)
+                # Вызываем синхронно вместо .delay(), чтобы перевод генерировался сразу на сервере без фонового воркера
+                parse_word_data(word_obj.id)
 
             return redirect(f"/?lang={selected_lang}")
 
