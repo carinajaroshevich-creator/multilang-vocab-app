@@ -19,7 +19,6 @@ def vocabulary_home(request):
         selected_lang = request.POST.get('language', current_lang)
 
         if english_word:
-            # Находим категорию по умолчанию строго для выбранного языка (или создаем)
             default_category, _ = Category.objects.get_or_create(
                 name="Общая",
                 language=selected_lang
@@ -36,12 +35,11 @@ def vocabulary_home(request):
             )
 
             if created:
-                # Вызываем синхронно вместо .delay(), чтобы перевод генерировался сразу на сервере без фонового воркера
+                # Синхронный вызов Gemini прямо во время запроса
                 parse_word_data(word_obj.id)
 
             return redirect(f"/?lang={selected_lang}")
 
-    # Фильтруем категории strictly по выбранному языку
     categories = Category.objects.filter(language=current_lang)
     user_words = Word.objects.filter(user=request.user, language=current_lang).order_by('-created_at')
 
@@ -64,7 +62,6 @@ def word_training(request):
     show_answer = request.GET.get('show_answer') == '1'
     action = request.GET.get('action')
 
-    # Если пользователь нажал «Помню» или «Не помню», обновляем дату повторения
     if word_id and action:
         word_item = get_object_or_404(Word, id=word_id, user=request.user)
         lang_to_redirect = word_item.language
@@ -74,25 +71,21 @@ def word_training(request):
             word_item.next_review = timezone.now()
         word_item.save()
 
-        # Редиректим дальше на следующее слово для этого же языка
         return redirect(f"{reverse('word_training')}?lang={lang_to_redirect}")
 
     word = None
     if word_id:
         word = get_object_or_404(Word, id=word_id, user=request.user)
-        # Если переданное слово относится к другому языку, сбрасываем его
         if word.language != current_lang:
             word = None
 
     if not word:
-        # 1. Сначала ищем слова текущего языка, у которых подошло время повторения
         word = Word.objects.filter(
             user=request.user,
             language=current_lang,
             next_review__lte=timezone.now()
         ).order_by('?').first()
 
-        # 2. Если таких нет, берем просто любое случайное слово ТЕКУЩЕГО языка
         if not word:
             word = Word.objects.filter(
                 user=request.user,
@@ -143,7 +136,7 @@ def add_user_example(request, word_id):
 def delete_word(request, word_id):
     """Безопасное удаление слова."""
     word = get_object_or_404(Word, id=word_id, user=request.user)
-    lang = word.language  # Запоминаем язык перед удалением
+    lang = word.language
 
     if request.method == 'POST':
         word.delete()
