@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -125,7 +125,8 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-GEMINI_API_KEY = "AQ.Ab8RN6LVqNfQARpwCHijsSn1Umhjg4TXUXSFuCVZSN--AAki0Q"
+import os
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 LOGIN_REDIRECT_URL = 'vocab_home'  # Куда отправлять после входа (на главную)
 LOGIN_URL = 'login'           # Куда отправлять гостя, если он не авторизован
