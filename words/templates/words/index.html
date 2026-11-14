@@ -38,6 +38,13 @@
 </div>
 
 <div class="container py-4">
+    <!-- Сообщения (лимиты, ошибки перевода) -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} rounded-4 shadow-sm" role="alert">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
     <!-- Главный баннер -->
     <div class="text-center mb-4">
         <h1 class="fw-extrabold text-dark mb-2" style="font-size: 2.2rem;">🌍 Мультиязычный Словарь</h1>

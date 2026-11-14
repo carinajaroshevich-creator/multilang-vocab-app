@@ -1,4 +1,5 @@
 import logging
+import re
 
 from celery import shared_task
 from django.conf import settings
@@ -9,8 +10,9 @@ from .models import Word, Category
 logger = logging.getLogger(__name__)
 
 FALLBACK_CATEGORY = "Общая"
+PENDING_TEXT = "Ожидает перевода..."
 
-# Категории, которые создаются автоматически для каждого языка.
+# Набор категорий, которые создаются автоматически для каждого языка.
 # Gemini выбирает одну из них для нового слова.
 DEFAULT_CATEGORIES = [
     "Программирование и ИТ",
@@ -42,12 +44,45 @@ def _clean(value):
     return value.replace("*", "").strip()
 
 
+def _copy_from_existing(word_obj):
+    """Кэш переводов: если такое слово уже переводилось (у любого пользователя),
+    копируем готовые данные и не тратим запрос к Gemini.
+    Берём только слова с настоящей категорией (не «Общая»), чтобы
+    повторная расстановка категорий через Gemini продолжала работать."""
+    donor = (
+        Word.objects
+        .filter(language=word_obj.language, english__iexact=word_obj.english)
+        .exclude(id=word_obj.id)
+        .exclude(translation__isnull=True)
+        .exclude(translation="")
+        .exclude(translation=PENDING_TEXT)
+        .exclude(category__isnull=True)
+        .exclude(category__name=FALLBACK_CATEGORY)
+        .order_by("id")
+        .first()
+    )
+    if donor is None:
+        return False
+
+    word_obj.translation = donor.translation
+    word_obj.transcription = donor.transcription
+    word_obj.gender = donor.gender
+    word_obj.example_sentence = donor.example_sentence
+    word_obj.category = donor.category
+    word_obj.save()
+    return True
+
+
 @shared_task
 def parse_word_data(word_id):
     """Заполняет перевод, транскрипцию, род, пример и категорию слова через Gemini API."""
     try:
         word_obj = Word.objects.get(id=word_id)
     except Word.DoesNotExist:
+        return
+
+    # Сначала пробуем взять готовый перевод из базы (экономит запросы к Gemini)
+    if _copy_from_existing(word_obj):
         return
 
     ensure_default_categories(word_obj.language)
@@ -88,6 +123,7 @@ def parse_word_data(word_id):
             if line.startswith("Перевод:"):
                 translation = line.replace("Перевод:", "", 1).strip()
             elif line.startswith("Транскрипция:"):
+                # убираем скобки, т.к. шаблон сам добавляет [ ]
                 transcription = line.replace("Транскрипция:", "", 1).strip().strip("[]() ")
             elif line.startswith("Род:"):
                 raw_gender = line.replace("Род:", "", 1).strip().lower()
@@ -98,7 +134,7 @@ def parse_word_data(word_id):
             elif line.startswith("Категория:"):
                 category_name = line.replace("Категория:", "", 1).strip().strip("[]. ")
 
-        if translation and translation != "Ожидает перевода...":
+        if translation and translation != PENDING_TEXT:
             word_obj.translation = translation
         if transcription:
             word_obj.transcription = transcription

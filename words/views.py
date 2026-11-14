@@ -2,11 +2,21 @@ from django.shortcuts import render, get_object_or_404, redirect, reverse
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from django.conf import settings
+from django.contrib import messages
 import datetime
 
 from .models import Category, Word, UserExample
 from .forms import UserRegisterForm
-from .tasks import parse_word_data
+from .tasks import parse_word_data, ensure_default_categories, FALLBACK_CATEGORY, PENDING_TEXT
+
+# Сколько новых слов один пользователь может добавить за 24 часа
+DAILY_NEW_WORDS_LIMIT = getattr(settings, "DAILY_NEW_WORDS_LIMIT", 50)
+
+
+def words_added_last_24h(user):
+    since = timezone.now() - datetime.timedelta(hours=24)
+    return Word.objects.filter(user=user, created_at__gte=since).count()
 
 
 @login_required
@@ -19,8 +29,26 @@ def vocabulary_home(request):
         selected_lang = request.POST.get('language', current_lang)
 
         if english_word:
-            default_category, _ = Category.objects.get_or_create(
-                name="Общая",
+            already_exists = Word.objects.filter(
+                english=english_word,
+                user=request.user,
+                language=selected_lang
+            ).exists()
+
+            # Дневной лимит на новые слова (для администратора не действует)
+            if (not already_exists
+                    and not request.user.is_superuser
+                    and words_added_last_24h(request.user) >= DAILY_NEW_WORDS_LIMIT):
+                messages.warning(
+                    request,
+                    f"Достигнут лимит: не более {DAILY_NEW_WORDS_LIMIT} новых слов за 24 часа. "
+                    "Попробуйте добавить слово позже."
+                )
+                return redirect(f"/?lang={selected_lang}")
+
+            ensure_default_categories(selected_lang)
+            default_category = Category.objects.get(
+                name=FALLBACK_CATEGORY,
                 language=selected_lang
             )
 
@@ -34,13 +62,26 @@ def vocabulary_home(request):
                 }
             )
 
-            if created:
-                # Синхронный вызов Gemini прямо во время запроса
+            # Переводим новое слово, а также повторяем попытку для тех,
+            # что раньше не перевелись (например, из-за ошибки API)
+            if created or word_obj.translation == PENDING_TEXT:
+                # Сначала берётся готовый перевод из базы, и только потом запрос к Gemini
                 parse_word_data(word_obj.id)
+                word_obj.refresh_from_db()
+                if word_obj.translation == PENDING_TEXT:
+                    messages.error(
+                        request,
+                        f"Не удалось получить перевод слова «{word_obj.english}»: сервис перевода "
+                        "сейчас недоступен или достигнут его лимит. Добавьте слово ещё раз чуть позже."
+                    )
 
             return redirect(f"/?lang={selected_lang}")
 
-    categories = Category.objects.filter(language=current_lang)
+    # Показываем только категории, в которых есть слова текущего пользователя
+    categories = Category.objects.filter(
+        language=current_lang,
+        word__user=request.user
+    ).distinct().order_by('name')
     user_words = Word.objects.filter(user=request.user, language=current_lang).order_by('-created_at')
 
     context = {
