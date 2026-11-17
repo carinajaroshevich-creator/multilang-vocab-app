@@ -1,17 +1,45 @@
 {% extends 'words/base.html' %}
 
 {% block content %}
-<div class="container mt-5" style="max-width: 500px;">
-    <div class="card shadow-sm p-4">
-        <h2 class="text-center mb-4">Регистрация в приложении</h2>
-        <form method="POST">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-dark w-100 mt-3">Создать аккаунт</button>
-        </form>
-        <p class="text-center mt-3 text-muted">
-            Уже есть аккаунт? <a href="{% url 'login' %}" class="text-dark">Войти</a>
-        </p>
+<style>
+    .auth-shell { max-width: 420px; margin: 0 auto; padding: 0 1.25rem; }
+    .auth-title { font-family: var(--serif); font-size: 1.9rem; font-weight: 600; margin: 3rem 0 .4rem; }
+    .auth-lead { color: var(--muted); margin-bottom: 2rem; }
+    .auth-form p { margin: 0 0 1.1rem; }
+    .auth-form label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: .3rem; }
+    .auth-form input {
+        width: 100%; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 6px;
+        background: var(--surface); color: var(--ink);
+    }
+    .auth-form input:focus { outline: none; border-color: var(--accent); }
+    .auth-form .helptext { display: block; font-size: .8rem; color: var(--muted); margin-top: .35rem; }
+    .auth-form .helptext ul { padding-left: 1.1rem; margin: .25rem 0 0; }
+    .auth-form .errorlist { list-style: none; padding: 0; margin: 0 0 .35rem; color: var(--danger); font-size: .88rem; }
+    .auth-submit { width: 100%; margin-top: .5rem; }
+    .auth-foot { margin-top: 1.5rem; color: var(--muted); font-size: .92rem; }
+</style>
+
+<header class="topbar">
+    <div class="shell topbar-inner">
+        <span class="brand">Словарь</span>
+        <div class="topbar-actions">
+            <button type="button" class="quiet-btn" onclick="toggleTheme()" aria-label="Сменить тему оформления" title="Сменить тему">
+                <i class="bi bi-moon theme-moon"></i><i class="bi bi-sun theme-sun"></i>
+            </button>
+        </div>
     </div>
-</div>
+</header>
+
+<main class="auth-shell pb-5">
+    <h1 class="auth-title">Регистрация</h1>
+    <p class="auth-lead">Создайте аккаунт, чтобы хранить свои слова и повторять их.</p>
+
+    <form method="POST" class="auth-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn-accent auth-submit">Создать аккаунт</button>
+    </form>
+
+    <p class="auth-foot">Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+</main>
 {% endblock %}

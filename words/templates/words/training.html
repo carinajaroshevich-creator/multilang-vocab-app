@@ -1,159 +1,92 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тренажер слов — Интервальное повторение</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-        }
-        .training-card {
-            max-width: 500px;
-            width: 100%;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            border: none;
-        }
-        .word-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-        .word-display {
-            font-size: 3.2rem;
-            font-weight: 800;
-            color: #0d6efd;
-            letter-spacing: -0.5px;
-            margin: 0;
-        }
-        .audio-btn {
-            font-size: 1.8rem;
-            color: #6c757d;
-            cursor: pointer;
-            transition: color 0.2s;
-            background: none;
-            border: none;
-            padding: 0;
-        }
-        .audio-btn:hover {
-            color: #0d6efd;
-        }
-        .transcription {
-            font-size: 1.3rem;
-            color: #6c757d;
-            font-family: 'Courier New', Courier, monospace;
-            background-color: #f1f3f5;
-            padding: 0.2rem 0.6rem;
-            border-radius: 6px;
-            display: inline-block;
-        }
-        .translation-display {
-            font-size: 1.6rem;
-            color: #198754;
-        }
-    </style>
-</head>
-<body>
+{% extends 'words/base.html' %}
 
-    <div class="container d-flex justify-content-center py-5">
-        <div class="card training-card p-4 text-center bg-white">
+{% block content %}
+<style>
+    .train-shell { max-width: 560px; margin: 0 auto; padding: 0 1.25rem; }
+    .train-meta { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.5rem; color: var(--muted); font-size: .92rem; }
+    .train-word {
+        display: flex; align-items: center; justify-content: center; gap: .75rem;
+        margin: 3.5rem 0 2rem; flex-wrap: wrap;
+    }
+    .train-word h1 { font-family: var(--serif); font-size: clamp(2.4rem, 9vw, 3.4rem); font-weight: 600; line-height: 1.1; margin: 0; text-align: center; }
+    .train-word .icon-btn { font-size: 1.4rem; }
+    .train-answer { text-align: center; border-top: 1px solid var(--line); padding-top: 2rem; }
+    .train-ipa { color: var(--muted); font-size: 1.05rem; }
+    .train-translation { font-size: 1.6rem; margin: .5rem 0 0; }
+    .train-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-top: 2rem; }
+    .train-actions a { text-align: center; padding: .8rem 1rem; font-size: 1rem; }
+    .train-reveal { text-align: center; border-top: 1px solid var(--line); padding-top: 2rem; }
+    .train-back { margin-top: 3rem; font-size: .92rem; }
+    .train-back a { color: var(--muted); text-decoration: none; }
+    .train-back a:hover { color: var(--ink); }
+</style>
 
-            <div class="mb-2">
-                <span class="badge bg-secondary px-3 py-2 rounded-pill">{{ word.category.name }}</span>
-            </div>
-
-            <div class="text-muted small mb-3">
-                Осталось повторить: <span class="badge bg-warning text-dark fw-bold">{{ words_to_review_count }}</span>
-            </div>
-
-            <div class="word-container my-4 py-2">
-                <h1 class="word-display" id="target-word">{{ word.english }}</h1>
-                <button class="audio-btn" onclick="speakWord()" title="Прослушать произношение">
-                    <i class="bi bi-volume-up-fill"></i>
-                </button>
-            </div>
-
-            <hr class="text-muted opacity-25">
-
-{% if show_answer %}
-                <div class="my-4">
-                    {% if word.transcription %}
-                        <div class="mb-2">
-                            <span class="transcription">{{ word.transcription }}</span>
-                        </div>
-                    {% endif %}
-                    <p class="translation-display fw-bold mt-3">{{ word.translation }}</p>
-                </div>
-
-                <div class="row g-3 mt-2">
-                    <div class="col-6">
-                        <a href="{% url 'word_training' %}?word_id={{ word.id }}&action=wrong&lang={{ current_lang }}" class="btn btn-danger btn-lg w-100 py-3 shadow-sm fw-semibold">
-                            ❌ Не помню
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'word_training' %}?word_id={{ word.id }}&action=correct&lang={{ current_lang }}" class="btn btn-success btn-lg w-100 py-3 shadow-sm fw-semibold">
-                            Помню! 👍
-                        </a>
-                    </div>
-                </div>
-            {% else %}
-                <div class="mt-2">
-                    <a href="{% url 'word_training' %}?word_id={{ word.id }}&show_answer=1&lang={{ current_lang }}" class="btn btn-primary btn-lg">
-                        👁️ Показать перевод
-                    </a>
-                </div>
-            {% endif %}
-
-            <div class="mt-4 pt-2 border-top border-light">
-                <a href="{% url 'vocab_home' %}?lang={{ current_lang }}" class="text-decoration-none text-muted small fw-medium">
-                    ← Вернуться в общий словарь
-                </a>
-            </div>
+<header class="topbar">
+    <div class="shell topbar-inner">
+        <a href="{% url 'vocab_home' %}?lang={{ current_lang }}" class="brand">Словарь</a>
+        <div class="topbar-actions">
+            <button type="button" class="quiet-btn" onclick="toggleTheme()" aria-label="Сменить тему оформления" title="Сменить тему">
+                <i class="bi bi-moon theme-moon"></i><i class="bi bi-sun theme-sun"></i>
+            </button>
         </div>
     </div>
+</header>
 
-    <script>
-        function speakWord() {
-            // Находим текст нашего слова
-            const wordText = document.getElementById('target-word').innerText;
+<main class="train-shell pb-5">
+    {% if word %}
+        <div class="train-meta">
+            <span>{{ word.category.name }}</span>
+            <span>Осталось повторить: {{ words_to_review_count }}</span>
+        </div>
 
-            // Проверяем, поддерживает ли браузер синтез речи
-            if ('speechSynthesis' in window) {
-                // Останавливаем прошлую озвучку, если она еще играет
-                window.speechSynthesis.cancel();
+        <div class="train-word">
+            <h1 id="target-word">{{ word.english }}</h1>
+            <button type="button" class="icon-btn" onclick="speakWord()" title="Прослушать" aria-label="Прослушать слово">
+                <i class="bi bi-volume-up"></i>
+            </button>
+        </div>
 
-                // Создаем объект речи
-                const utterance = new SpeechSynthesisUtterance(wordText);
+        {% if show_answer %}
+            <div class="train-answer">
+                {% if word.transcription %}
+                    <div class="train-ipa">[{{ word.transcription|cut:"["|cut:"]" }}]</div>
+                {% endif %}
+                <p class="train-translation">{{ word.translation }}</p>
 
-                // Динамически определяем язык для браузера
-                const wordLang = "{{ word.language }}";
-                const langMap = {
-                    'en': 'en-US',
-                    'de': 'de-DE',
-                    'it': 'it-IT'
-                };
+                <div class="train-actions">
+                    <a href="{% url 'word_training' %}?word_id={{ word.id }}&action=wrong&lang={{ current_lang }}" class="btn-line">Не помню</a>
+                    <a href="{% url 'word_training' %}?word_id={{ word.id }}&action=correct&lang={{ current_lang }}" class="btn-accent">Помню</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="train-reveal">
+                <a href="{% url 'word_training' %}?word_id={{ word.id }}&show_answer=1&lang={{ current_lang }}" class="btn-accent">Показать перевод</a>
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="empty mt-5">На этом языке пока нет слов для тренировки. Добавьте слова в словаре.</p>
+    {% endif %}
 
-                utterance.lang = langMap[wordLang] || 'en-US';
-                utterance.rate = 0.9; // Чуть-чуть замедляем скорость для четкости
+    <p class="train-back">
+        <a href="{% url 'vocab_home' %}?lang={{ current_lang }}">Вернуться в словарь</a>
+    </p>
+</main>
 
-                // Запускаем озвучку
-                window.speechSynthesis.speak(utterance);
-            }
-        }
+<script>
+    function speakWord() {
+        const el = document.getElementById('target-word');
+        if (!el || !('speechSynthesis' in window)) { return; }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(el.innerText);
+        const langMap = { 'en': 'en-US', 'de': 'de-DE', 'it': 'it-IT' };
+        utterance.lang = langMap["{{ word.language|default:'en' }}"] || 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }
 
-        // Автоматически озвучивать слово сразу при загрузке страницы карточки
-        window.onload = function() {
-            setTimeout(speakWord, 300);
-        };
-    </script>
-
-</body>
-</html>
+    // Озвучиваем слово сразу при открытии карточки
+    window.addEventListener('load', function () {
+        setTimeout(speakWord, 300);
+    });
+</script>
+{% endblock %}
